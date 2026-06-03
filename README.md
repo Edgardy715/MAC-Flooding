@@ -2,30 +2,32 @@
 
 # MAC Flooding Attack
 
-> **Autor:** Edgardy Olivero | **Matricula:** 20250704  
-> **Laboratorio:** EGALDITO_LAB | **Herramienta:** Python 3 + Scapy  
+> **Autor:** Edgardy Olivero | **Matrícula:** 20250704
+> **Laboratorio:** EGALDITO\_LAB | **Herramienta:** Python 3 + Scapy
 > **Repositorio:** [github.com/Edgardy715/MAC-Flooding](https://github.com/Edgardy715/MAC-Flooding)
 
 ---
 
-## Objetivo del Laboratorio
+## 📋 Objetivo del Laboratorio
 
-Demostrar como un atacante puede saturar la tabla CAM (Content Addressable Memory) de un switch enviando frames Ethernet con MACs de origen falsas y aleatorias a alta velocidad, forzando al switch a comportarse como un hub y retransmitir el trafico a todos los puertos, lo que permite la captura pasiva del trafico de otros hosts. El ataque de MAC flooding busca precisamente llenar la tabla de direcciones del switch hasta provocar un comportamiento de *fail-open* [web:23][web:25].
-
-## Objetivo del Script
-
-Generar y enviar frames Ethernet continuamente, cada uno con una MAC de origen y destino completamente aleatoria, para llenar la tabla CAM del switch hasta que no pueda registrar nuevas entradas legitimas y comience a inundar todos los puertos. Esto expone trafico unicast de otros equipos y permite validar la debilidad de la red frente a ataques de capa 2 [web:23][web:26].
+Demostrar cómo un atacante puede saturar la tabla CAM (Content Addressable Memory) de un switch enviando frames Ethernet con MACs de origen falsas y aleatorias a alta velocidad, forzando al switch a comportarse como un hub y retransmitir el tráfico a todos los puertos, lo que permite la captura pasiva del tráfico de otros hosts.
 
 ---
 
-## Estructura del Repositorio
+## 🎯 Objetivo del Script
+
+Generar y enviar frames Ethernet continuamente, cada uno con una MAC de origen y destino completamente aleatoria, para llenar la tabla CAM del switch hasta que no pueda registrar nuevas entradas legítimas y comience a inundar todos los puertos. Esto expone tráfico unicast de otros equipos y permite validar la debilidad de la red frente a ataques de capa 2.
+
+---
+
+## 📁 Estructura del Repositorio
 
 ```text
 MAC-Flooding/
 ├── Script/
-│   └── MAC-Flooding.py                   <- Script principal del ataque
+│   └── MAC-Flooding.py                   ← Script principal del ataque
 ├── Mitigacion/
-│   └── Mitigacion-MAC-flooding.ios       <- Comandos Port Security (Cisco IOS)
+│   └── Mitigacion-MAC-flooding.ios       ← Comandos Port Security (Cisco IOS)
 ├── Conf-Topologia/
 │   └── scripts_bases_configs/
 │       ├── R1.ios
@@ -38,25 +40,25 @@ MAC-Flooding/
 
 ---
 
-## Parametros del Script
+## ⚙️ Parámetros del Script
 
-| Variable | Valor | Descripcion |
+| Variable | Valor | Descripción |
 |---|---|---|
-| `IFACE` | `eth0` | Interfaz directa, sin subinterfaz VLAN, usada para el ataque de capa 2. |
-| `INTERVALO` | `0.001` | 1 ms entre frames, equivalente a aproximadamente 1000 frames por segundo. |
-| `rand_mac()` | aleatorio | Genera una MAC de 6 bytes completamente aleatoria. |
-| `Raw(load)` | `"X" * 18` | Padding minimo para completar un frame Ethernet valido. |
-| `enviados` | lista[int] | Contador de frames enviados durante la ejecucion. |
+| `IFACE` | `eth0` | Interfaz física directa. MAC Flooding es un ataque L2 puro, no requiere subinterfaz VLAN. |
+| `INTERVALO` | `0.001` | 1 ms entre frames (~1000 frames/seg). |
+| `rand_mac()` | aleatorio | Genera una MAC de 6 bytes completamente aleatoria por frame. |
+| `Raw(load)` | `"X" * 18` | Padding mínimo para completar un frame Ethernet válido. |
+| `enviados` | `list[int]` | Contador de frames enviados durante la ejecución. |
 
 ---
 
-## Requisitos
+## 🛠️ Requisitos
 
 ```bash
 # Dependencias
 pip install scapy
 
-# Verificar interfaz eth0 activa y conectada al switch
+# Verificar que eth0 esté activa y conectada al switch
 ip link show eth0
 
 # Ejecutar como root
@@ -65,12 +67,12 @@ sudo python3 Script/MAC-Flooding.py
 
 ---
 
-## Funcionamiento del Script
+## 🔍 Funcionamiento del Script
 
-### Flujo de ejecucion
+### Flujo de ejecución
 
 ```text
-1. Verifica ejecucion como root.
+1. Verifica ejecución como root.
 2. Registra handlers SIGINT/SIGTERM para cleanup().
 3. En un bucle principal:
    a. Genera una MAC de origen aleatoria.
@@ -78,38 +80,39 @@ sudo python3 Script/MAC-Flooding.py
    c. Construye un frame Ether / IP / UDP / Raw.
    d. Envía el frame con sendp().
    e. Incrementa el contador enviados.
-   f. Cada 500 frames, imprime el total enviado.
-4. Al presionar Ctrl+C, cleanup() muestra el total de frames enviados.
+   f. Cada 500 frames imprime el total en pantalla.
+4. Ctrl+C → cleanup() muestra el total de frames enviados.
 ```
 
 ### Estructura del frame enviado
 
 ```text
-[Ether]  src=MAC_aleatoria  dst=MAC_aleatoria
-  [IP]    src=1.1.1.1       dst=2.2.2.2
-    [UDP] sport=1234        dport=4321
-      [Raw] load="X" * 18   (padding minimo Ethernet)
+[Ether]  src=MAC_aleatoria   dst=MAC_aleatoria
+  [IP]   src=1.1.1.1         dst=2.2.2.2
+    [UDP] sport=1234         dport=4321
+      [Raw] load="X" * 18   (padding mínimo Ethernet)
 ```
 
 ### Efecto en la tabla CAM del switch
 
 ```text
 Estado normal:
-  MAC              VLAN  Puerto
-  0c:bf:c5:c2:00   10    Gi0/1
-  0cc0.7fb8.0000   1     Gi0/0
+  MAC                VLAN  Puerto
+  0c:bf:c5:c2:00:00   1    Gi0/1
+  0cc0.7fb8.0000      1    Gi0/0
 
 Durante el ataque:
-  02:a1:b2:c3:d4   1     Gi0/1
-  02:e5:f6:07:08   1     Gi0/1
+  02:a1:b2:c3:d4:e5   1    Gi0/1
+  02:e5:f6:07:08:09   1    Gi0/1
   ... miles de MACs falsas ...
 
 Consecuencia:
   El switch agota su tabla CAM y comienza a inundar todos los puertos.
-  El atacante puede capturar trafico unicast de otros hosts.
+  El atacante puede capturar tráfico unicast de otros hosts con Wireshark
+  en modo promiscuo (wireshark -i eth0 -p).
 ```
 
-### Verificacion en el switch durante el ataque
+### Verificación en el switch durante el ataque
 
 ```cisco
 SW2# show mac address-table count
@@ -118,57 +121,47 @@ SW2# show mac address-table | head 30
 
 ---
 
-## Documentacion de la Red
+## 🌐 Documentación de la Red
 
-### Topologia del Laboratorio
+### Topología del Laboratorio
 
 ```text
 +------------------+        +---------------------+        +---------------------+
 |   Kali Linux     |        |        SW2          |        |        SW1          |
-|   (Atacante)     |<------>|  GNS3 vIOS-L2       |<------>|  GNS3 vIOS-L2      |
-|     eth0         |  Gi0/1 | VTP Client          |  Gi0/0 | VTP Server         |
-| 0c:bf:c5:c2:00:00|        | 0cc0.7fb8.0000      |        | 0cb5.a4d7.0000    |
+|   (Atacante)     |◄──────►|  GNS3 vIOS-L2       |◄──────►|  GNS3 vIOS-L2       |
+|     eth0         | Gi0/1  | VTP Client          | Gi0/0  | VTP Server          |
+| 0c:bf:c5:c2:00:00|        | 0cc0.7fb8.0000      |        | 0cb5.a4d7.0000      |
 +------------------+        +---------------------+        +---------------------+
-                                                                   |  Gi0/1
-                                                        +---------------------+
-                                                        |         R1          |
-                                                        |  192.168.10.1/24    |
-                                                        +---------------------+
+                                                                    | Gi0/1
+                                                         +---------------------+
+                                                         |         R1          |
+                                                         |  192.168.10.1/24    |
+                                                         +---------------------+
 ```
 
-> Topologia completa en `Topologia/Topologia.png`
+> Topología completa disponible en `Topologia/Topologia.png`
 
 ### Tabla de Direccionamiento
 
-| Dispositivo | Interfaz | VLAN | IP / Mascara | MAC | Rol |
-|---|---|---:|---|---|---|
-| Kali Linux | eth0 | 1 | dinamica | `0c:bf:c5:c2:00:00` | Atacante |
-| SW1 | Gi0/0 (trunk) | 1,10 | — | `0cb5.a4d7.0000` | VTP Server / Root |
-| SW2 | Gi0/0 (trunk) | 1,10 | — | `0cc0.7fb8.0000` | VTP Client |
-| R1 | Gi0/0 | 10 | 192.168.10.1/24 | — | Gateway / DHCP |
+| Dispositivo | Interfaz | VLAN | IP / Máscara | MAC | Rol |
+|---|---|---|---|---|---|
+| Kali Linux | `eth0` | 1 (nativa) | dinámica | `0c:bf:c5:c2:00:00` | Atacante |
+| SW1 | Gi0/0 (trunk) | 1, 10 | — | `0cb5.a4d7.0000` | VTP Server / Root Bridge |
+| SW2 | Gi0/1 (acceso) | 1, 10 | — | `0cc0.7fb8.0000` | VTP Client |
+| R1 | Gi0/0 | 10 | 192.168.10.1/24 | — | Gateway / DHCP Server |
 
 ```text
-VTP Domain: EGALDITO_LAB | SW1: VTP Server | SW2: VTP Client
-STP Root Bridge: SW1 | Priority: 32769 | MAC: 0cb5.a4d7.0000
-VLAN 10: RED_LOCAL (192.168.10.0/24)
+VTP Domain  : EGALDITO_LAB
+SW1         : VTP Server | STP Root Bridge | Priority 32769 | MAC 0cb5.a4d7.0000
+SW2         : VTP Client
+VLAN 10     : RED_LOCAL — 192.168.10.0/24
 ```
 
 ---
 
-## Capturas de Pantalla
+## 🛡️ Contramedidas
 
-| Momento | Descripcion |
-|---|---|
-| Pre-ataque | `show mac address-table count` muestra pocas entradas legitimas. |
-| Durante ataque | ~1000 frames/s, tabla CAM al limite de capacidad. |
-| Efecto | El switch inunda todos los puertos, comportamiento similar a un hub. |
-| Captura | Wireshark en Kali captura trafico unicast de otros hosts. |
-
----
-
-## Contramedidas
-
-El archivo de mitigacion esta en `Mitigacion/Mitigacion-MAC-flooding.ios`.
+El archivo de mitigación está en `Mitigacion/Mitigacion-MAC-flooding.ios`.
 
 ### 1. Port Security — defensa principal
 
@@ -180,34 +173,41 @@ interface GigabitEthernet0/1
  switchport port-security
  switchport port-security maximum 5
  switchport port-security violation restrict
- switchport port-security violation shutdown
 exit
 do wr
 ```
 
-### Verificacion
+> Se usa `violation restrict` porque descarta los frames no permitidos y registra el evento en el log sin desactivar el puerto, lo que permite mantener la conectividad de usuarios legítimos mientras se bloquea el ataque.
+>
+> Si se prefiere una respuesta más agresiva, reemplazar `restrict` por `shutdown` para desactivar el puerto automáticamente al detectar la violación. **No usar ambos comandos juntos** — en Cisco IOS solo se aplica el último `violation` configurado.
 
-```cisco
-SW2# show port-security interface GigabitEthernet0/1
-SW2# show port-security address
-```
-
-`violation restrict` descarta frames no permitidos y registra el evento; `violation shutdown` desactiva el puerto si se excede el limite. Port Security es la mitigacion clasica para ataques de overflow de tabla CAM [web:22][web:24][web:27].
-
-### 2. MAC address sticky
+### 2. MAC address sticky (opcional)
 
 ```cisco
 interface GigabitEthernet0/1
  switchport port-security mac-address sticky
 ```
 
+> Aprende dinámicamente las MACs legítimas y las guarda en la running-config, evitando tener que configurarlas manualmente.
+
+### Verificación
+
+```cisco
+SW2# show port-security interface GigabitEthernet0/1
+SW2# show port-security address
+```
+
 ---
 
-## Video Demostrativo
+## 🎬 Video Demostrativo
 
-**Lista de reproduccion EGALDITO_LAB:** [Layer 2 Network Attacks](https://www.youtube.com/@Edgardy715)
+**Lista de reproducción EGALDITO\_LAB — Layer 2 Network Attacks:**
+[https://www.youtube.com/playlist?list=PL24FUvJVT9rBmlkIyA1pGp28VHhh3JK1j](https://www.youtube.com/playlist?list=PL24FUvJVT9rBmlkIyA1pGp28VHhh3JK1j)
+
+**Video de este ataque:**
+[https://youtu.be/of8dcXwVVsM](https://youtu.be/of8dcXwVVsM)
 
 ---
 
-*Laboratorio desarrollado con fines estrictamente educativos en entorno GNS3 aislado.*  
-*Autor: Edgardy Olivero | 20250704 | EGALDITO_LAB*
+*Laboratorio desarrollado con fines estrictamente educativos en entorno GNS3 aislado.*
+*Autor: Edgardy Olivero | 20250704 | EGALDITO\_LAB*
