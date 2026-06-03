@@ -1,0 +1,15 @@
+!!!!!!!!!!!!!!!! Mitigacion de MAC Flooding (Port Security)
+en
+conf term
+interface GigabitEthernet0/1
+switchport mode access
+!!!! Habilitar port-security
+switchport port-security
+
+!!!! Maximo 5 MACs
+switchport port-security maximum 5
+switchport port-security violation restrict
+!!!! Apagar puerto en caso de violacion
+switchport port-security violation shutdown
+exit
+do wr
